@@ -1,0 +1,118 @@
+#############################
+# Main goddammit.xyz domain #
+#############################
+server {
+    # Set this server as default port, and serve as SSL
+    listen      443 default_server;
+    server_name goddammit.xyz;
+    # Serve files under this directory for main website
+    root        /home/www-data/html;
+    index index.php index.html
+
+    # Include common security and compression settings
+    include snippets/common.conf;    
+    # Include SSL support
+    include snippets/ssl.conf;
+
+    # Enable php #
+    location ~ \.php$ {
+        include snippets/fastcgi-php.conf;
+    
+        # With php7.0-cgi alone:
+        #fastcgi_pass 127.0.0.1:9000;
+        # With php7.0-fpm:
+        fastcgi_pass unix:/run/php/php7.0-fpm.sock;
+    }
+
+    #Convert mp3 to play vs download#
+    location ~ \.wav$ {
+        add_header Content-Disposition "inline";
+    }
+    #Password auth for server console#
+    location /console {
+        return 301 /console/;
+    }
+    location ~ /console {
+        auth_basic "GodDammit Minecraft Console";
+        auth_basic_user_file .passwords-console;
+    }
+    #Password auth for server console#
+    location /AllTheMods {
+        return 301 /AllTheMods/;
+    }
+    location ~ /AllTheMods {
+        auth_basic "GodDammit Minecraft Console";
+        auth_basic_user_file .passwords-console;
+    }
+   
+    # netdata stuff
+    location /status {
+        return 301 /status/;
+    }
+
+
+    location ~ /status/(?<ndpath>.*) {
+        auth_basic "GodDammit Status";
+	auth_basic_user_file .passwords-netdata;
+
+        proxy_redirect off;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Server $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_pass_request_headers on;
+        proxy_set_header Connection "keep-alive";
+        proxy_store off;
+        proxy_pass http://127.0.0.1:19999/$ndpath$is_args$args;
+    }
+}
+
+server {
+    # Set this server as default port, and serve as SSL
+    listen      443;
+    server_name mythrus.goddammit.xyz;
+
+    # Include common security and compression settings
+    include snippets/common.conf;    
+    # Include SSL support
+    include snippets/ssl.conf;
+
+    location / {
+        rewrite /dynmap/(.*) /$1  break;
+        proxy_set_header      X-Real-IP $remote_addr;
+        proxy_set_header      X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header      Host $http_host;
+        proxy_redirect        off;
+        proxy_read_timeout    6;
+        proxy_pass            http://127.0.0.1:8123;
+    }
+    location ~ /([A-Za-z_]+)/(-?\d+)/(\d+)/(-?\d+) {
+        return 301 https://goddammit.xyz/dynmap/?worldname=$1&mapname=surface&zoom=7&x=$2&y=$3&z=$4;
+    }
+}
+
+
+###################
+# Misc. Redirects #
+###################
+
+# Redirect all HTTP requests to HTTPS
+# https://bjornjohansen.no/redirect-to-https-with-nginx
+server {
+    listen      80;
+    server_name .goddammit.xyz;
+    return      301 https://$host$request_uri;
+}
+
+# Redirect all unknown subdomains to front page
+server {
+   listen      80;
+   server_name *.goddammit.xyz;
+   return      301 https://goddammit.xyz$request_uri;
+}
+
+# Reject requests with no host
+server {
+    listen 80;
+    return 444;
+}
