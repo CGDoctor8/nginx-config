@@ -1,6 +1,6 @@
-#############################
-# Main goddammit.xyz domain #
-#############################
+##############################
+# Main goddammit.xyz domain ##
+##############################
 server {
     # Set this server as default port, and serve as SSL
     listen      443 default_server;
